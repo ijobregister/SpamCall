@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Permissions for Screening calls, receiving SMS, recording audio (speech-to-text) and internet -->
+    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <application
+        android:allowBackup="true"
+        android:label="GuardCall AI"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.GuardCall"
+        tools:targetApi="31">
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:label="GuardCall AI"
+            android:theme="@style/Theme.GuardCall">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Call Screening Service -->
+        <service
+            android:name=".service.CallScreeningServiceImpl"
+            android:permission="android.permission.BIND_CALL_SCREENING_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.telecom.CallScreeningService" />
+            </intent-filter>
+        </service>
+
+        <!-- SMS Receiver -->
+        <receiver
+            android:name=".service.SmsReceiver"
+            android:permission="android.permission.BROADCAST_SMS"
+            android:exported="true">
+            <intent-filter android:priority="999">
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Accessibility Service for Real-time Transcription Screen Monitoring -->
+        <service
+            android:name=".service.LiveCallAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+    </application>
+</manifest>
