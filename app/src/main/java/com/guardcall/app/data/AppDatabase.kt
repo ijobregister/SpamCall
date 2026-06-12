@@ -47,7 +47,8 @@ data class CallIncidentReport(
     @ColumnInfo(name = "link_intercepted") val linkIntercepted: String? = null,
     @ColumnInfo(name = "spammer_ip") val spammerIp: String? = null,
     @ColumnInfo(name = "spammer_location") val spammerLocation: String? = null,
-    @ColumnInfo(name = "spammer_ua") val spammerUa: String? = null
+    @ColumnInfo(name = "spammer_ua") val spammerUa: String? = null,
+    @ColumnInfo(name = "payment_methods_targeted") val paymentMethodsTargeted: String? = null
 )
 
 // ==========================================
@@ -115,7 +116,7 @@ interface ScamDao {
 
 @Database(
     entities = [ScamNumber::class, OfficialProcedure::class, ScamPattern::class, CallIncidentReport::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -132,6 +133,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "guardcall_database"
                 )
+                    .fallbackToDestructiveMigration()
                     .addCallback(AppDatabaseCallback(scope))
                     .build()
                 INSTANCE = instance

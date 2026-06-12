@@ -20,6 +20,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -50,6 +52,9 @@ import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+import android.graphics.Paint
+import android.graphics.pdf.PdfDocument
+import android.os.Environment
 
 class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
@@ -147,7 +152,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         }
 
         setContent {
-            GuardCallAppTheme {
+            ScamCallAppTheme {
                 MainLayout()
             }
         }
@@ -190,14 +195,14 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.Shield,
-                                contentDescription = "GuardCall Logo",
+                                contentDescription = "ScamCall Logo",
                                 tint = Color(0xFFE53935),
                                 modifier = Modifier.size(32.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
                                 Text(
-                                    "防騙衛士 (GuardCall AI)",
+                                    "防騙衛士 (ScamCall)",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 18.sp,
                                     color = Color.White
@@ -621,6 +626,11 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         if (isCallActive || isSmsMode) {
             // Write incident report to Database
             mainScope.launch(Dispatchers.IO) {
+                val transcriptText = liveTranscript.map { "${it.speaker}: ${it.text}" }.joinToString("\n")
+                val engine = com.guardcall.app.engine.SkepticismEngine()
+                val detectedPaymentsList = engine.detectTargetedPayments(applicationContext, if (isSmsMode) smsBodyText else transcriptText)
+                val paymentsString = if (detectedPaymentsList.isNotEmpty()) detectedPaymentsList.joinToString(", ") else null
+
                 val transcriptJson = liveTranscript.map { "{\"speaker\":\"${it.speaker}\",\"text\":\"${it.text}\"}" }.joinToString(",")
                 appDatabase.scamDao().insertReport(
                     CallIncidentReport(
@@ -631,7 +641,8 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                         linkIntercepted = if (isSmsMode) smsLinkUrl else null,
                         spammerIp = if (spammerIpAddress.isNotEmpty()) spammerIpAddress else null,
                         spammerLocation = if (spammerGeographicalLoc.isNotEmpty()) spammerGeographicalLoc else null,
-                        spammerUa = if (spammerDeviceUserAgent.isNotEmpty()) spammerDeviceUserAgent else null
+                        spammerUa = if (spammerDeviceUserAgent.isNotEmpty()) spammerDeviceUserAgent else null,
+                        paymentMethodsTargeted = paymentsString
                     )
                 )
             }
@@ -673,6 +684,10 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         var newBlackNum by remember { mutableStateOf("") }
         var newBlackTag by remember { mutableStateOf("") }
 
+        var editingProcedure by remember { mutableStateOf<OfficialProcedure?>(null) }
+        var editingPattern by remember { mutableStateOf<ScamPattern?>(null) }
+        var editingBlacklist by remember { mutableStateOf<ScamNumber?>(null) }
+
         // Query databases
         LaunchedEffect(Unit) {
             scope.launch {
@@ -709,10 +724,20 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                                 Text("禁止事項: ${proc.forbiddenAction}", color = Color.Gray, fontSize = 12.sp)
                                 Text("警告內容: ${proc.warningText}", color = Color.Red, fontSize = 11.sp)
                             }
-                            IconButton(onClick = {
-                                scope.launch(Dispatchers.IO) { appDatabase.scamDao().deleteProcedure(proc) }
-                            }) {
-                                Icon(Icons.Default.Delete, contentDescription = "刪除", tint = Color.Gray)
+                            Row {
+                                IconButton(onClick = {
+                                    editingProcedure = proc
+                                    newInst = proc.institution
+                                    newRule = proc.forbiddenAction
+                                    newWarn = proc.warningText
+                                }) {
+                                    Icon(Icons.Default.Edit, contentDescription = "編輯", tint = Color.Gray)
+                                }
+                                IconButton(onClick = {
+                                    scope.launch(Dispatchers.IO) { appDatabase.scamDao().deleteProcedure(proc) }
+                                }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "刪除", tint = Color.Gray)
+                                }
                             }
                         }
                     }
@@ -721,7 +746,12 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                 // Add Form
                 Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF151515)), modifier = Modifier.padding(top = 8.dp)) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("新增官方規則", fontWeight = FontWeight.Bold, color = Color.LightGray, fontSize = 13.sp)
+                        Text(
+                            text = if (editingProcedure != null) "編輯官方規則" else "新增官方規則",
+                            fontWeight = FontWeight.Bold,
+                            color = Color.LightGray,
+                            fontSize = 13.sp
+                        )
                         OutlinedTextField(
                             value = newInst, onValueChange = { newInst = it },
                             label = { Text("機構名稱", color = Color.Gray) },
@@ -740,21 +770,40 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                             colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White),
                             modifier = Modifier.fillMaxWidth()
                         )
-                        Button(
-                            onClick = {
-                                if (newInst.isNotEmpty() && newRule.isNotEmpty()) {
-                                    scope.launch(Dispatchers.IO) {
-                                        appDatabase.scamDao().insertProcedure(
-                                            OfficialProcedure(institution = newInst, forbiddenAction = newRule, warningText = newWarn)
-                                        )
-                                        newInst = ""; newRule = ""; newWarn = ""
-                                    }
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)),
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.align(Alignment.End)
                         ) {
-                            Text("儲存規則")
+                            if (editingProcedure != null) {
+                                Button(
+                                    onClick = {
+                                        editingProcedure = null
+                                        newInst = ""; newRule = ""; newWarn = ""
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
+                                ) {
+                                    Text("取消")
+                                }
+                            }
+                            Button(
+                                onClick = {
+                                    if (newInst.isNotEmpty() && newRule.isNotEmpty()) {
+                                        scope.launch(Dispatchers.IO) {
+                                            val procToSave = if (editingProcedure != null) {
+                                                OfficialProcedure(id = editingProcedure!!.id, institution = newInst, forbiddenAction = newRule, warningText = newWarn)
+                                            } else {
+                                                OfficialProcedure(institution = newInst, forbiddenAction = newRule, warningText = newWarn)
+                                            }
+                                            appDatabase.scamDao().insertProcedure(procToSave)
+                                            newInst = ""; newRule = ""; newWarn = ""
+                                            editingProcedure = null
+                                        }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                            ) {
+                                Text(if (editingProcedure != null) "更新規則" else "儲存規則")
+                            }
                         }
                     }
                 }
@@ -777,10 +826,20 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                                 Text("關鍵字: ${pattern.keywords}", color = Color.Yellow, fontSize = 12.sp)
                                 Text("建議: ${pattern.advice}", color = Color.LightGray, fontSize = 12.sp)
                             }
-                            IconButton(onClick = {
-                                scope.launch(Dispatchers.IO) { appDatabase.scamDao().deletePattern(pattern) }
-                            }) {
-                                Icon(Icons.Default.Delete, contentDescription = "刪除", tint = Color.Gray)
+                            Row {
+                                IconButton(onClick = {
+                                    editingPattern = pattern
+                                    newSource = pattern.source
+                                    newKeywords = pattern.keywords
+                                    newAdvice = pattern.advice
+                                }) {
+                                    Icon(Icons.Default.Edit, contentDescription = "編輯", tint = Color.Gray)
+                                }
+                                IconButton(onClick = {
+                                    scope.launch(Dispatchers.IO) { appDatabase.scamDao().deletePattern(pattern) }
+                                }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "刪除", tint = Color.Gray)
+                                }
                             }
                         }
                     }
@@ -789,7 +848,12 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                 // Add Form
                 Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF151515)), modifier = Modifier.padding(top = 8.dp)) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("新增詐騙模式", fontWeight = FontWeight.Bold, color = Color.LightGray, fontSize = 13.sp)
+                        Text(
+                            text = if (editingPattern != null) "編輯新聞/警方警告" else "新增新聞/警方警告",
+                            fontWeight = FontWeight.Bold,
+                            color = Color.LightGray,
+                            fontSize = 13.sp
+                        )
                         OutlinedTextField(
                             value = newSource, onValueChange = { newSource = it },
                             label = { Text("新聞/警方警告來源", color = Color.Gray) },
@@ -808,21 +872,40 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                             colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White),
                             modifier = Modifier.fillMaxWidth()
                         )
-                        Button(
-                            onClick = {
-                                if (newSource.isNotEmpty() && newKeywords.isNotEmpty()) {
-                                    scope.launch(Dispatchers.IO) {
-                                        appDatabase.scamDao().insertPattern(
-                                            ScamPattern(source = newSource, keywords = newKeywords, advice = newAdvice)
-                                        )
-                                        newSource = ""; newKeywords = ""; newAdvice = ""
-                                    }
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)),
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.align(Alignment.End)
                         ) {
-                            Text("儲存模式")
+                            if (editingPattern != null) {
+                                Button(
+                                    onClick = {
+                                        editingPattern = null
+                                        newSource = ""; newKeywords = ""; newAdvice = ""
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
+                                ) {
+                                    Text("取消")
+                                }
+                            }
+                            Button(
+                                onClick = {
+                                    if (newSource.isNotEmpty() && newKeywords.isNotEmpty()) {
+                                        scope.launch(Dispatchers.IO) {
+                                            val patternToSave = if (editingPattern != null) {
+                                                ScamPattern(id = editingPattern!!.id, source = newSource, keywords = newKeywords, advice = newAdvice)
+                                            } else {
+                                                ScamPattern(source = newSource, keywords = newKeywords, advice = newAdvice)
+                                            }
+                                            appDatabase.scamDao().insertPattern(patternToSave)
+                                            newSource = ""; newKeywords = ""; newAdvice = ""
+                                            editingPattern = null
+                                        }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                            ) {
+                                Text(if (editingPattern != null) "更新模式" else "儲存模式")
+                            }
                         }
                     }
                 }
@@ -844,10 +927,19 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                                 Text(item.phoneNumber, fontWeight = FontWeight.Bold, color = Color.White)
                                 Text(item.entityName, color = Color.Gray, fontSize = 12.sp)
                             }
-                            IconButton(onClick = {
-                                scope.launch(Dispatchers.IO) { appDatabase.scamDao().deleteScamNumber(item) }
-                            }) {
-                                Icon(Icons.Default.Delete, contentDescription = "刪除", tint = Color.Gray)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(onClick = {
+                                    editingBlacklist = item
+                                    newBlackNum = item.phoneNumber
+                                    newBlackTag = item.entityName
+                                }) {
+                                    Icon(Icons.Default.Edit, contentDescription = "編輯", tint = Color.Gray)
+                                }
+                                IconButton(onClick = {
+                                    scope.launch(Dispatchers.IO) { appDatabase.scamDao().deleteScamNumber(item) }
+                                }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "刪除", tint = Color.Gray)
+                                }
                             }
                         }
                     }
@@ -856,7 +948,12 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                 // Add Form
                 Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF151515)), modifier = Modifier.padding(top = 8.dp)) {
                     Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("新增電話黑名單", fontWeight = FontWeight.Bold, color = Color.LightGray, fontSize = 13.sp)
+                        Text(
+                            text = if (editingBlacklist != null) "編輯電話黑名單" else "新增電話黑名單",
+                            fontWeight = FontWeight.Bold,
+                            color = Color.LightGray,
+                            fontSize = 13.sp
+                        )
                         OutlinedTextField(
                             value = newBlackNum, onValueChange = { newBlackNum = it },
                             label = { Text("電話號碼", color = Color.Gray) },
@@ -869,21 +966,40 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                             colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White),
                             modifier = Modifier.fillMaxWidth()
                         )
-                        Button(
-                            onClick = {
-                                if (newBlackNum.isNotEmpty()) {
-                                    scope.launch(Dispatchers.IO) {
-                                        appDatabase.scamDao().insertScamNumber(
-                                            ScamNumber(phoneNumber = newBlackNum, entityName = newBlackTag)
-                                        )
-                                        newBlackNum = ""; newBlackTag = ""
-                                    }
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)),
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.align(Alignment.End)
                         ) {
-                            Text("加入黑名單")
+                            if (editingBlacklist != null) {
+                                Button(
+                                    onClick = {
+                                        editingBlacklist = null
+                                        newBlackNum = ""; newBlackTag = ""
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
+                                ) {
+                                    Text("取消")
+                                }
+                            }
+                            Button(
+                                onClick = {
+                                    if (newBlackNum.isNotEmpty()) {
+                                        scope.launch(Dispatchers.IO) {
+                                            val blacklistToSave = if (editingBlacklist != null) {
+                                                ScamNumber(id = editingBlacklist!!.id, phoneNumber = newBlackNum, entityName = newBlackTag)
+                                            } else {
+                                                ScamNumber(phoneNumber = newBlackNum, entityName = newBlackTag)
+                                            }
+                                            appDatabase.scamDao().insertScamNumber(blacklistToSave)
+                                            newBlackNum = ""; newBlackTag = ""
+                                            editingBlacklist = null
+                                        }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828))
+                            ) {
+                                Text(if (editingBlacklist != null) "更新黑名單" else "加入黑名單")
+                            }
                         }
                     }
                 }
@@ -966,6 +1082,12 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                             Spacer(modifier = Modifier.height(12.dp))
                             Text("營運商位置: ${report.carrierLocation}", color = Color.White, fontSize = 13.sp)
                             
+                            if (report.paymentMethodsTargeted != null) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("目標支付管道：", fontWeight = FontWeight.Bold, color = Color.Yellow, fontSize = 13.sp)
+                                Text(report.paymentMethodsTargeted, color = Color.White, fontSize = 13.sp)
+                            }
+                            
                             if (report.spammerIp != null) {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text("誘餌 IP 抓取器記錄的地理位置詳情：", fontWeight = FontWeight.Bold, color = Color.Yellow, fontSize = 13.sp)
@@ -999,7 +1121,16 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0)),
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Text("導出移交文件 (TXT)", fontSize = 12.sp)
+                                    Text("TXT", fontSize = 10.sp)
+                                }
+                                Button(
+                                    onClick = { 
+                                        exportReportToPdf(context, report)
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("PDF", fontSize = 10.sp)
                                 }
                                 Button(
                                     onClick = { 
@@ -1008,7 +1139,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)),
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Text("移交警方", fontSize = 12.sp)
+                                    Text("移交警方", fontSize = 10.sp)
                                 }
                             }
                         }
@@ -1021,7 +1152,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private fun exportReportToHandoverTxt(context: Context, report: CallIncidentReport) {
         val fileContent = """
             ==================================================
-            GUARDCALL AI - SPAM CALL INCIDENT REPORT
+            SCAMCALL AI - SPAM CALL INCIDENT REPORT
             ==================================================
             Date Generated: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())}
             Incident Timestamp: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(report.timestamp))}
@@ -1056,6 +1187,116 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         }
     }
 
+    private fun exportReportToPdf(context: Context, report: CallIncidentReport) {
+        val pdfDocument = PdfDocument()
+        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
+        val page = pdfDocument.startPage(pageInfo)
+        val canvas = page.canvas
+
+        val paint = Paint()
+        paint.textSize = 12f
+        paint.color = android.graphics.Color.BLACK
+
+        var y = 40f
+
+        // Header
+        paint.textSize = 18f
+        paint.isFakeBoldText = true
+        canvas.drawText("SCAMCALL - 防騙衛士 REPORT", 50f, y, paint)
+        y += 25f
+
+        paint.textSize = 10f
+        paint.isFakeBoldText = false
+        paint.color = android.graphics.Color.GRAY
+        canvas.drawText("Generated: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())}", 50f, y, paint)
+        y += 20f
+
+        // Line
+        paint.color = android.graphics.Color.BLACK
+        paint.strokeWidth = 2f
+        canvas.drawLine(50f, y, 545f, y, paint)
+        y += 25f
+
+        // Metadata
+        paint.textSize = 12f
+        paint.isFakeBoldText = true
+        canvas.drawText("Incident Metadata", 50f, y, paint)
+        y += 18f
+
+        paint.isFakeBoldText = false
+        canvas.drawText("Caller Number: ${report.callerNumber}", 50f, y, paint)
+        y += 15f
+        canvas.drawText("Risk Rating: ${report.riskScore}% Risk", 50f, y, paint)
+        y += 15f
+        canvas.drawText("Carrier Location: ${report.carrierLocation}", 50f, y, paint)
+        y += 15f
+        canvas.drawText("Date/Time: ${SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(report.timestamp))}", 50f, y, paint)
+        y += 15f
+        canvas.drawText("Targeted Payment Channels: ${report.paymentMethodsTargeted ?: "None Detected"}", 50f, y, paint)
+        y += 15f
+        if (report.spammerIp != null) {
+            canvas.drawText("Spammer IP: ${report.spammerIp} (${report.spammerLocation})", 50f, y, paint)
+            y += 15f
+        }
+
+        y += 15f
+        canvas.drawLine(50f, y, 545f, y, paint)
+        y += 25f
+
+        // Dialogue Title
+        paint.isFakeBoldText = true
+        canvas.drawText("Diarized Call Transcript", 50f, y, paint)
+        y += 20f
+
+        paint.isFakeBoldText = false
+        // Draw transcript line-by-line with text wrapping
+        val lines = report.dialogTranscript.replace("[", "").replace("]", "").split("},")
+        for (line in lines) {
+            if (line.trim().isEmpty()) continue
+            // Parse speaker and text
+            val speaker = if (line.contains("Spammer") || line.contains("騙徒")) "騙徒" else "受話人"
+            val rawText = line.substringAfter("\"text\":\"").substringBefore("\"")
+
+            // Draw speaker label
+            paint.isFakeBoldText = true
+            val speakerLabel = "[$speaker]: "
+            canvas.drawText(speakerLabel, 50f, y, paint)
+
+            val labelWidth = paint.measureText(speakerLabel)
+            paint.isFakeBoldText = false
+
+            // Wrap text to fit canvas width (limit to 400f width)
+            val charLimit = 25
+            var start = 0
+            while (start < rawText.length) {
+                val end = (start + charLimit).coerceAtMost(rawText.length)
+                val segment = rawText.substring(start, end)
+                canvas.drawText(segment, 50f + labelWidth, y, paint)
+                y += 15f
+                start = end
+                if (y > 800f) break
+            }
+            y += 5f
+
+            if (y > 800f) {
+                break
+            }
+        }
+
+        pdfDocument.finishPage(page)
+
+        try {
+            val fileName = "Police_Handover_${report.callerNumber}_${report.timestamp}.pdf"
+            val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName)
+            pdfDocument.writeTo(FileOutputStream(file))
+            Toast.makeText(context, "PDF Report exported to: ${file.absolutePath}", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, "Failed to export PDF: ${e.message}", Toast.LENGTH_SHORT).show()
+        } finally {
+            pdfDocument.close()
+        }
+    }
+
     private fun triggerPoliceHandoverAlert(context: Context, report: CallIncidentReport) {
         Toast.makeText(context, "Handover Package for ${report.callerNumber} sent to HKPF CyberSecurity Bureau!", Toast.LENGTH_LONG).show()
     }
@@ -1075,7 +1316,8 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             Text("系統設置", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 18.sp)
@@ -1098,6 +1340,160 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                     },
                     colors = SwitchDefaults.colors(checkedThumbColor = Color.Red, checkedTrackColor = Color(0xFFC62828))
                 )
+            }
+
+            HorizontalDivider(color = Color.DarkGray)
+
+            // Protected Payment Channels Selection
+            val defaultPayments = setOf("Bank Apps", "Internet Banking", "Visa", "FPS", "Octopus", "7-Eleven", "Circle K", "Alipay", "WeChat Pay")
+            var protectedPayments by remember {
+                mutableStateOf(sharedPrefs.getStringSet("protected_payments", defaultPayments) ?: defaultPayments)
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("受防護支付管道 (Payment Protection)", fontWeight = FontWeight.Bold, color = Color.White)
+                Text("選擇需要防護與追蹤的交易方式（偵測到對話提及時將自動在報告與PDF中記錄）。", color = Color.Gray, fontSize = 12.sp)
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val p1 = "Bank Apps"
+                    val isS1 = protectedPayments.contains(p1)
+                    Button(
+                        onClick = {
+                            val newSet = protectedPayments.toMutableSet()
+                            if (isS1) newSet.remove(p1) else newSet.add(p1)
+                            protectedPayments = newSet
+                            sharedPrefs.edit().putStringSet("protected_payments", newSet).apply()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (isS1) Color(0xFFC62828) else Color.DarkGray),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("銀行App", fontSize = 10.sp)
+                    }
+
+                    val p2 = "Internet Banking"
+                    val isS2 = protectedPayments.contains(p2)
+                    Button(
+                        onClick = {
+                            val newSet = protectedPayments.toMutableSet()
+                            if (isS2) newSet.remove(p2) else newSet.add(p2)
+                            protectedPayments = newSet
+                            sharedPrefs.edit().putStringSet("protected_payments", newSet).apply()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (isS2) Color(0xFFC62828) else Color.DarkGray),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("網上銀行", fontSize = 10.sp)
+                    }
+
+                    val p3 = "Visa"
+                    val isS3 = protectedPayments.contains(p3)
+                    Button(
+                        onClick = {
+                            val newSet = protectedPayments.toMutableSet()
+                            if (isS3) newSet.remove(p3) else newSet.add(p3)
+                            protectedPayments = newSet
+                            sharedPrefs.edit().putStringSet("protected_payments", newSet).apply()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (isS3) Color(0xFFC62828) else Color.DarkGray),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Visa卡", fontSize = 10.sp)
+                    }
+                }
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val p4 = "FPS"
+                    val isS4 = protectedPayments.contains(p4)
+                    Button(
+                        onClick = {
+                            val newSet = protectedPayments.toMutableSet()
+                            if (isS4) newSet.remove(p4) else newSet.add(p4)
+                            protectedPayments = newSet
+                            sharedPrefs.edit().putStringSet("protected_payments", newSet).apply()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (isS4) Color(0xFFC62828) else Color.DarkGray),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("轉數快", fontSize = 10.sp)
+                    }
+
+                    val p5 = "Octopus"
+                    val isS5 = protectedPayments.contains(p5)
+                    Button(
+                        onClick = {
+                            val newSet = protectedPayments.toMutableSet()
+                            if (isS5) newSet.remove(p5) else newSet.add(p5)
+                            protectedPayments = newSet
+                            sharedPrefs.edit().putStringSet("protected_payments", newSet).apply()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (isS5) Color(0xFFC62828) else Color.DarkGray),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("八達通", fontSize = 10.sp)
+                    }
+
+                    val p8 = "Alipay"
+                    val isS8 = protectedPayments.contains(p8)
+                    Button(
+                        onClick = {
+                            val newSet = protectedPayments.toMutableSet()
+                            if (isS8) newSet.remove(p8) else newSet.add(p8)
+                            protectedPayments = newSet
+                            sharedPrefs.edit().putStringSet("protected_payments", newSet).apply()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (isS8) Color(0xFFC62828) else Color.DarkGray),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("支付寶", fontSize = 10.sp)
+                    }
+                }
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val p9 = "WeChat Pay"
+                    val isS9 = protectedPayments.contains(p9)
+                    Button(
+                        onClick = {
+                            val newSet = protectedPayments.toMutableSet()
+                            if (isS9) newSet.remove(p9) else newSet.add(p9)
+                            protectedPayments = newSet
+                            sharedPrefs.edit().putStringSet("protected_payments", newSet).apply()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (isS9) Color(0xFFC62828) else Color.DarkGray),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("微信支付", fontSize = 10.sp)
+                    }
+
+                    val p6 = "7-Eleven"
+                    val isS6 = protectedPayments.contains(p6)
+                    Button(
+                        onClick = {
+                            val newSet = protectedPayments.toMutableSet()
+                            if (isS6) newSet.remove(p6) else newSet.add(p6)
+                            protectedPayments = newSet
+                            sharedPrefs.edit().putStringSet("protected_payments", newSet).apply()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (isS6) Color(0xFFC62828) else Color.DarkGray),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("7-11", fontSize = 10.sp)
+                    }
+
+                    val p7 = "Circle K"
+                    val isS7 = protectedPayments.contains(p7)
+                    Button(
+                        onClick = {
+                            val newSet = protectedPayments.toMutableSet()
+                            if (isS7) newSet.remove(p7) else newSet.add(p7)
+                            protectedPayments = newSet
+                            sharedPrefs.edit().putStringSet("protected_payments", newSet).apply()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (isS7) Color(0xFFC62828) else Color.DarkGray),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Circle K", fontSize = 10.sp)
+                    }
+                }
             }
 
             HorizontalDivider(color = Color.DarkGray)
@@ -1134,11 +1530,11 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
             // Region Selector
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("區域目標規則政策", fontWeight = FontWeight.Bold, color = Color.White)
-                Text("當前區域決定了程序驗證數據庫的檢查規則。", color = Color.Gray, fontSize = 12.sp)
+                Text("區域目標國家/規則政策 (Region Rules)", fontWeight = FontWeight.Bold, color = Color.White)
+                Text("選擇當前防護的國家地區（決定程序驗證數據庫的檢查規則）。", color = Color.Gray, fontSize = 12.sp)
                 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("HK", "SG", "UK").forEach { region ->
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("HK", "SG", "UK", "US", "CA", "AU").forEach { region ->
                         val isSelected = selectedRegion == region
                         Button(
                             onClick = {
@@ -1148,9 +1544,50 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                             },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (isSelected) Color(0xFFC62828) else Color.DarkGray
-                            )
+                            ),
+                            contentPadding = PaddingValues(horizontal = 6.dp),
+                            modifier = Modifier.weight(1f)
                         ) {
-                            Text(region)
+                            Text(region, fontSize = 9.sp)
+                        }
+                    }
+                }
+            }
+
+            HorizontalDivider(color = Color.DarkGray)
+
+            // Speech Recognition and Translation language selector
+            var speechLang by remember { mutableStateOf(sharedPrefs.getString("speech_language_code", "zh-HK") ?: "zh-HK") }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("語音偵測及翻譯語言 (Speech & Translation Language)", fontWeight = FontWeight.Bold, color = Color.White)
+                Text("選擇通話實時聽取及翻譯的目標語言（支援廣東話、普通話及英文）。", color = Color.Gray, fontSize = 12.sp)
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    val langs = listOf(
+                        Triple("zh-HK", "廣東話 (HK)", "Cantonese"),
+                        Triple("zh-CN", "普通話 (CN)", "Mandarin"),
+                        Triple("en-US", "英語 (US)", "English")
+                    )
+
+                    langs.forEach { lang ->
+                        val isSelected = speechLang == lang.first
+                        Button(
+                            onClick = {
+                                speechLang = lang.first
+                                sharedPrefs.edit().putString("speech_language_code", lang.first).apply()
+                                Toast.makeText(context, "語音檢測已切換至 ${lang.second}！", Toast.LENGTH_SHORT).show()
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isSelected) Color(0xFFC62828) else Color.DarkGray
+                            ),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 4.dp)
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(lang.second, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text(lang.third, fontSize = 8.sp, color = Color.LightGray)
+                            }
                         }
                     }
                 }
@@ -1161,7 +1598,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
 // Minimal Theme wrapper
 @Composable
-fun GuardCallAppTheme(content: @Composable () -> Unit) {
+fun ScamCallAppTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = darkColorScheme(
             primary = Color(0xFFC62828),

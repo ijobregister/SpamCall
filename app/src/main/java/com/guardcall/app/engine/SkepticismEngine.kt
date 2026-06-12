@@ -17,7 +17,8 @@ class SkepticismEngine {
         val riskScore: Int,
         val advice: String,
         val contradictionFound: String?,
-        val warningText: String?
+        val warningText: String?,
+        val detectedPayments: List<String> = emptyList()
     )
 
     fun analyzeDialogue(context: Context, text: String): AnalysisResult {
@@ -28,6 +29,13 @@ class SkepticismEngine {
         val advices = mutableListOf<String>()
         var contradiction: String? = null
         var warningText: String? = null
+
+        // Detect protected payment methods
+        val detectedPayments = detectTargetedPayments(context, text)
+        if (detectedPayments.isNotEmpty()) {
+            calculatedRisk += 15 * detectedPayments.size
+            advices.add("Payment Channel Threatened: ${detectedPayments.joinToString(", ")}")
+        }
 
         runBlocking(Dispatchers.IO) {
             val procedures = database.scamDao().getAllProceduresList()
@@ -75,8 +83,48 @@ class SkepticismEngine {
             riskScore = finalRiskScore,
             advice = finalAdvice,
             contradictionFound = contradiction,
-            warningText = warningText
+            warningText = warningText,
+            detectedPayments = detectedPayments
         )
+    }
+
+    fun detectTargetedPayments(context: Context, text: String): List<String> {
+        val sharedPrefs = context.getSharedPreferences("GuardCallPrefs", Context.MODE_PRIVATE)
+        // Get user-protected payment methods set (default to all of them enabled)
+        val protectedPayments = sharedPrefs.getStringSet("protected_payments", setOf("Bank Apps", "Internet Banking", "Visa", "FPS", "Octopus", "7-Eleven", "Circle K", "Alipay", "WeChat Pay")) ?: emptySet()
+        
+        val detected = mutableListOf<String>()
+        
+        // Match conditions (in English and Cantonese)
+        if (protectedPayments.contains("Bank Apps") && (text.contains("銀行app", ignoreCase = true) || text.contains("手機銀行", ignoreCase = true) || text.contains("bank app", ignoreCase = true))) {
+            detected.add("Bank Apps")
+        }
+        if (protectedPayments.contains("Internet Banking") && (text.contains("網上銀行", ignoreCase = true) || text.contains("網銀", ignoreCase = true) || text.contains("e-banking", ignoreCase = true) || text.contains("internet banking", ignoreCase = true))) {
+            detected.add("Internet Banking")
+        }
+        if (protectedPayments.contains("Visa") && (text.contains("visa", ignoreCase = true) || text.contains("信用卡", ignoreCase = true) || text.contains("credit card", ignoreCase = true))) {
+            detected.add("Visa")
+        }
+        if (protectedPayments.contains("FPS") && (text.contains("轉數快", ignoreCase = true) || text.contains("fps", ignoreCase = true) || text.contains("快速支付", ignoreCase = true))) {
+            detected.add("FPS")
+        }
+        if (protectedPayments.contains("Octopus") && (text.contains("八達通", ignoreCase = true) || text.contains("octopus", ignoreCase = true))) {
+            detected.add("Octopus")
+        }
+        if (protectedPayments.contains("Alipay") && (text.contains("支付寶", ignoreCase = true) || text.contains("alipay", ignoreCase = true) || text.contains("支寶", ignoreCase = true))) {
+            detected.add("Alipay")
+        }
+        if (protectedPayments.contains("WeChat Pay") && (text.contains("微信支付", ignoreCase = true) || text.contains("wechat pay", ignoreCase = true) || text.contains("微信過數", ignoreCase = true) || text.contains("微訊", ignoreCase = true))) {
+            detected.add("WeChat Pay")
+        }
+        if (protectedPayments.contains("7-Eleven") && (text.contains("7-11", ignoreCase = true) || text.contains("7-eleven", ignoreCase = true) || text.contains("便利店", ignoreCase = true) || text.contains("七十一", ignoreCase = true))) {
+            detected.add("7-Eleven")
+        }
+        if (protectedPayments.contains("Circle K") && (text.contains("circle k", ignoreCase = true) || text.contains("ok便利店", ignoreCase = true) || text.contains("ok 點", ignoreCase = true) || text.contains("ok便利", ignoreCase = true))) {
+            detected.add("Circle K")
+        }
+        
+        return detected
     }
 
     private fun containsInstitutionRef(text: String, institutionName: String): Boolean {

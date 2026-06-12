@@ -93,11 +93,13 @@ class LiveCallAccessibilityService : AccessibilityService() {
     private fun startSpeechRecognition() {
         speechRecognizer?.let { recognizer ->
             isRecognizerListening = true
+            val sharedPrefs = getSharedPreferences("GuardCallPrefs", Context.MODE_PRIVATE)
+            val selectedLangCode = sharedPrefs.getString("speech_language_code", "zh-HK") ?: "zh-HK"
+            
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                // Set language to Hong Kong Cantonese first priority
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-HK")
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "zh-HK")
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, selectedLangCode)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, selectedLangCode)
                 putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             }
             recognizer.startListening(intent)

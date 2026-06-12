@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">GuardCall AI</string>
-    <string name="accessibility_description">GuardCall AI accessibility service monitors active call screens to transcribe spam keywords and cross-reference official procedures for verification.</string>
+    <string name="app_name">ScamCall</string>
+    <string name="accessibility_description">ScamCall accessibility service monitors active call screens to transcribe spam keywords and cross-reference official procedures for verification.</string>
 </resources>
