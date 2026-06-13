@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpamCall (防騙衛士) — AI Security Dashboard</title>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-dark: #0a0a0c;
+            --panel-dark: #121216;
+            --glass-bg: rgba(22, 22, 28, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --primary: #e53935;
+            --primary-glow: rgba(229, 57, 53, 0.4);
+            --secondary: #1e88e5;
+            --secondary-glow: rgba(30, 136, 229, 0.3);
+            --accent-green: #43a047;
+            --accent-yellow: #ffb300;
+            --text-main: #f5f5f7;
+            --text-muted: #8e8e93;
+            --font-main: 'Outfit', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --sidebar-width: 280px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: var(--font-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(229, 57, 53, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(30, 136, 229, 0.05) 0%, transparent 40%);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Sidebar navigation */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--panel-dark);
+            border-right: 1px solid var(--glass-border);
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 2rem 1.5rem;
+            z-index: 100;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            margin-bottom: 3rem;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), #b71c1c);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px var(--primary-glow);
+            font-size: 1.2rem;
+            animation: pulse 3s infinite alternate;
+        }
+
+        .logo-text h1 {
+            font-size: 1.2rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            background: linear-gradient(to right, #fff, #a0a0a5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-text span {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: block;
+        }
+
+        .nav-links {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            list-style: none;
+            flex-grow: 1;
+        }
+
+        .nav-item button {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.8rem 1rem;
+            border-radius: 8px;
+            text-align: left;
+            font-family: var(--font-main);
+            font-size: 0.95rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item button:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.03);
+            transform: translateX(4px);
+        }
+
+        .nav-item.active button {
+            color: var(--text-main);
+            background: rgba(229, 57, 53, 0.1);
+            border-left: 3px solid var(--primary);
+            padding-left: calc(1rem - 3px);
+            box-shadow: inset 4px 0 10px rgba(229, 57, 53, 0.05);
+        }
+
+        .nav-item.active button i {
+            color: var(--primary);
+        }
+
+        .sidebar-footer {
+            border-top: 1px solid var(--glass-border);
+            padding-top: 1.5rem;
+            margin-top: auto;
+        }
+
+        .repo-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            text-decoration: none;
+            padding: 0.8rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .repo-link:hover {
+            background: var(--text-main);
+            color: var(--bg-dark);
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1);
+        }
+
+        /* Main Content Container */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            flex-grow: 1;
+            padding: 3rem;
+            max-width: 1200px;
+            width: calc(100% - var(--sidebar-width));
+        }
+
+        /* Section structure */
+        .doc-section {
+            display: none;
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        .doc-section.active {
+            display: block;
+        }
+
+        /* Header elements */
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(229, 57, 53, 0.12);
+            border: 1px solid rgba(229, 57, 53, 0.2);
+            color: var(--primary);
+            padding: 0.4rem 0.8rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+
+        .doc-title {
+            font-size: 2.5rem;
+            font-weight: 900;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #ffffff 30%, #a5a5ab 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .doc-subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 2.5rem;
+        }
+
+        /* Cards & Layout */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover .card-icon {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.8rem;
+        }
+
+        .card-desc {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        /* Lists and steps */
+        .feature-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+
+        .feature-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.8rem;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .feature-list li i {
+            color: var(--primary);
+            margin-top: 0.2rem;
+        }
+
+        /* Tech table styling */
+        .tech-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1.5rem;
+        }
+
+        .tech-table th, .tech-table td {
+            padding: 1rem 1.2rem;
+            text-align: left;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .tech-table th {
+            font-weight: 700;
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.02);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tech-table td {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+        }
+
+        .tech-table tr:hover td {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.01);
+        }
+
+        .tech-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-main);
+        }
+
+        /* Code snippets */
+        pre {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--glass-border);
+            padding: 1.5rem;
+            border-radius: 12px;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+        }
+
+        code {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: #d1d1d6;
+        }
+
+        /* Interactive Simulator styles */
+        .simulator-panel {
+            background: linear-gradient(145deg, #16161c, #0c0c0e);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2.5rem;
+        }
+
+        @media (max-width: 900px) {
+            .simulator-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .sim-input-column {
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+        }
+
+        .sim-output-column {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 1.8rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .sim-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+        }
+
+        .preset-scenarios {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+        }
+
+        .preset-btn {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--glass-border);
+            color: var(--text-muted);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-family: var(--font-main);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .preset-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-main);
+        }
+
+        .preset-btn.active {
+            background: rgba(229, 57, 53, 0.15);
+            border-color: var(--primary);
+            color: var(--text-main);
+        }
+
+        .sim-textarea {
+            width: 100%;
+            height: 180px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 1rem;
+            color: var(--text-main);
+            font-family: var(--font-main);
+            font-size: 1rem;
+            line-height: 1.5;
+            resize: none;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .sim-textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(229, 57, 53, 0.15);
+        }
+
+        /* Dial widget */
+        .gauge-area {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .gauge-ring {
+            width: 100px;
+            height: 100px;
+            position: relative;
+        }
+
+        .gauge-svg {
+            transform: rotate(-90deg);
+            width: 100px;
+            height: 100px;
+        }
+
+        .gauge-track {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.05);
+            stroke-width: 8;
+        }
+
+        .gauge-fill {
+            fill: none;
+            stroke: var(--accent-green);
+            stroke-width: 8;
+            stroke-dasharray: 282.6;
+            stroke-dashoffset: 282.6;
+            transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.3s ease;
+            stroke-linecap: round;
+        }
+
+        .gauge-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 1.6rem;
+            color: var(--text-main);
+        }
+
+        .gauge-label {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .gauge-sub {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+        }
+
+        .meter-container {
+            margin-bottom: 1.5rem;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--accent-green);
+            border-radius: 3px;
+            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;
+        }
+
+        .sim-alerts {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            overflow-y: auto;
+            max-height: 150px;
+            padding-right: 0.5rem;
+        }
+
+        .sim-alert-item {
+            background: rgba(255, 255, 255, 0.02);
+            border-left: 3px solid var(--text-muted);
+            padding: 0.8rem;
+            border-radius: 0 6px 6px 0;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            display: flex;
+            gap: 0.6rem;
+            animation: slideIn 0.3s ease forwards;
+        }
+
+        .sim-alert-item.danger {
+            border-left-color: var(--primary);
+            background: rgba(229, 57, 53, 0.04);
+            color: #ff8a80;
+        }
+
+        .sim-alert-item.warning {
+            border-left-color: var(--accent-yellow);
+            background: rgba(255, 179, 0, 0.04);
+            color: #ffe082;
+        }
+
+        .sim-alert-item.info {
+            border-left-color: var(--secondary);
+            background: rgba(30, 136, 229, 0.04);
+            color: #90caf9;
+        }
+
+        .empty-alerts {
+            color: var(--text-muted);
+            font-style: italic;
+            font-size: 0.85rem;
+            text-align: center;
+            margin: auto 0;
+        }
+
+        /* Database diagram CSS */
+        .db-schema-visual {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+            margin-top: 1.5rem;
+        }
+
+        .db-table-box {
+            flex: 1;
+            min-width: 250px;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .db-table-header {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 0.8rem 1.2rem;
+            border-bottom: 1px solid var(--glass-border);
+            font-weight: 700;
+            font-size: 0.95rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .db-table-header i {
+            color: var(--primary);
+        }
+
+        .db-columns {
+            padding: 0.5rem 0;
+        }
+
+        .db-column-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.4rem 1.2rem;
+            font-size: 0.85rem;
+            font-family: var(--font-mono);
+        }
+
+        .db-col-name {
+            color: #e1e1e6;
+        }
+
+        .db-col-name.pk::before {
+            content: "🔑 ";
+        }
+
+        .db-col-type {
+            color: var(--text-muted);
+        }
+
+        /* Platform list comparison */
+        .platforms-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 800px) {
+            .platforms-split {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .platform-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 2rem;
+        }
+
+        .platform-card.android {
+            border-top: 4px solid #a4c639;
+        }
+
+        .platform-card.ios {
+            border-top: 4px solid #007aff;
+        }
+
+        .platform-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .platform-header.android i {
+            color: #a4c639;
+        }
+
+        .platform-header.ios i {
+            color: #007aff;
+        }
+
+        /* Radar simulator animation */
+        .radar-box {
+            position: relative;
+            width: 140px;
+            height: 140px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(67, 160, 71, 0.3);
+            border-radius: 50%;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+        }
+
+        .radar-sweep {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: conic-gradient(from 0deg, rgba(67, 160, 71, 0.15) 0deg, rgba(67, 160, 71, 0) 120deg);
+            border-radius: 50%;
+            animation: sweep 4s linear infinite;
+        }
+
+        .radar-circle {
+            position: absolute;
+            border: 1px solid rgba(67, 160, 71, 0.15);
+            border-radius: 50%;
+        }
+
+        .radar-circle-1 { width: 70%; height: 70%; }
+        .radar-circle-2 { width: 40%; height: 40%; }
+
+        .radar-blip {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #e53935;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #e53935;
+            top: 30%;
+            left: 65%;
+            animation: blink 1.5s infinite;
+        }
+
+        /* Keyframes */
+        @keyframes sweep {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 4px 15px rgba(229, 57, 53, 0.4); }
+            100% { box-shadow: 0 4px 25px rgba(229, 57, 53, 0.7); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-15px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="logo-area">
+            <div class="logo-icon">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <div class="logo-text">
+                <h1>SpamCall</h1>
+                <span>防騙衛士 • GuardCall</span>
+            </div>
+        </div>
+
+        <nav class="nav-links">
+            <li class="nav-item active" data-target="overview">
+                <button><i class="fa-solid fa-house"></i> Overview</button>
+            </li>
+            <li class="nav-item" data-target="architecture">
+                <button><i class="fa-solid fa-sitemap"></i> System Architecture</button>
+            </li>
+            <li class="nav-item" data-target="engine">
+                <button><i class="fa-solid fa-microchip"></i> Skepticism Engine</button>
+            </li>
+            <li class="nav-item" data-target="database">
+                <button><i class="fa-solid fa-database"></i> Database Schema</button>
+            </li>
+            <li class="nav-item" data-target="platforms">
+                <button><i class="fa-solid fa-mobile-screen-button"></i> Device Integrations</button>
+            </li>
+            <li class="nav-item" data-target="simulator">
+                <button><i class="fa-solid fa-terminal"></i> Live Simulator</button>
+            </li>
+        </nav>
+
+        <div class="sidebar-footer">
+            <a href="https://github.com/ijobregister/SpamCall" target="_blank" class="repo-link">
+                <i class="fa-brands fa-github"></i> GitHub Repository
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        
+        <!-- SECTION 1: OVERVIEW -->
+        <section id="overview" class="doc-section active">
+            <div class="header-badge"><i class="fa-solid fa-circle-check"></i> Project Dashboard Ready</div>
+            <h2 class="doc-title">Project Overview</h2>
+            <p class="doc-subtitle">SpamCall (防騙衛士) is an advanced, native dual-platform security solution built for Hong Kong users. It intercepts spam phone calls, flags fraudulent text messages, and employs local heuristics to isolate conversational scams.</p>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-icon"><i class="fa-solid fa-phone-slash"></i></div>
+                    <h3 class="card-title">Call Screen Blocking</h3>
+                    <p class="card-desc">Automatically screening incoming calls. Uses system hooks to block blacklisted numbers silently while keeping detailed internal logging history.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon"><i class="fa-solid fa-brain"></i></div>
+                    <h3 class="card-title">Skepticism Engine</h3>
+                    <p class="card-desc">Evaluates transcripts and message content to identify contradictions of official procedures (e.g. asking to mail cards or requesting verification codes).</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon"><i class="fa-solid fa-network-wired"></i></div>
+                    <h3 class="card-title">Active Honeypot Defense</h3>
+                    <p class="card-desc">Automatically sends SMS locator reply messages when phishing links arrive, trapping scammers by logging their IP addresses, devices, and geolocations.</p>
+                </div>
+            </div>
+
+            <h3 class="card-title" style="margin-top: 3rem;">Project Technology Stacks</h3>
+            <table class="tech-table">
+                <thead>
+                    <tr>
+                        <th>Module</th>
+                        <th>Android Application</th>
+                        <th>iOS Application</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Development Language</strong></td>
+                        <td><span class="tech-badge">Kotlin</span></td>
+                        <td><span class="tech-badge">Swift</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>User Interface</strong></td>
+                        <td><span class="tech-badge">Jetpack Compose (Material 3)</span></td>
+                        <td><span class="tech-badge">SwiftUI</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Local Storage</strong></td>
+                        <td><span class="tech-badge">Room SQLite</span></td>
+                        <td><span class="tech-badge">SQLite</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Speech Core API</strong></td>
+                        <td><span class="tech-badge">android.speech.SpeechRecognizer</span></td>
+                        <td><span class="tech-badge">Core Speech Transcription</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Call/SMS Hooks</strong></td>
+                        <td><span class="tech-badge">CallScreeningService & SmsReceiver</span></td>
+                        <td><span class="tech-badge">CallKit & IdentityLookup</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- SECTION 2: SYSTEM ARCHITECTURE -->
+        <section id="architecture" class="doc-section">
+            <div class="header-badge"><i class="fa-solid fa-diagram-project"></i> Structural Architecture</div>
+            <h2 class="doc-title">System Architecture</h2>
+            <p class="doc-subtitle">SpamCall connects deep OS-level intercepts with a local database logic and custom accessibility services to parse incoming calls and messages.</p>
+
+            <div class="grid-2">
+                <div class="card" style="grid-column: span 2;">
+                    <h3 class="card-title" style="display:flex; align-items:center; gap:0.5rem;">
+                        <i class="fa-solid fa-shield-virus" style="color:var(--primary)"></i> Interception and Evaluation Pipeline
+                    </h3>
+                    <p class="card-desc" style="margin-bottom: 1.5rem;">
+                        Incoming calls or messages trigger native system services. The interceptors parse the identifiers, evaluate against the local database blacklist, and run speech/text checks via the Skepticism Engine. If a phishing link is found, a honeypot geolocation request is issued.
+                    </p>
+                    <div style="background: rgba(0,0,0,0.3); border:1px solid var(--glass-border); padding: 1.5rem; border-radius:12px; font-family: var(--font-mono); font-size: 0.85rem; color:#a4c639; line-height:1.6;">
+                        <span style="color:#8e8e93">// Intercept Pipeline Sequence</span><br>
+                        1. System Hook [CallScreeningService / CallKit] catches incoming number.<br>
+                        2. If number matches blacklisted item in Room/SQLite DB -> Block Call & Launch Overlay.<br>
+                        3. If call accepted -> Accessibility Service/Speech Transcriber scrapes text dialogue.<br>
+                        4. Skepticism Engine analyzes speech for contradiction patterns -> Triggers spoken Cantonese warnings if risk > 50%.<br>
+                        5. If phishing link SMS received -> Automatically replies to sender with locator geocode honeypot.
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title">Honeypot IP Tracker</h3>
+                    <p class="card-desc" style="margin-bottom: 1.2rem;">
+                        When a link is caught, the app logs the event and sends back a locator link: <code>https://guardcall.link/consent-{reportId}</code>.
+                    </p>
+                    <div class="radar-box">
+                        <div class="radar-sweep"></div>
+                        <div class="radar-circle radar-circle-1"></div>
+                        <div class="radar-circle radar-circle-2"></div>
+                        <div class="radar-blip"></div>
+                    </div>
+                    <p class="card-desc" style="margin-top: 1rem; text-align: center; font-size: 0.8rem;">
+                        <i class="fa-solid fa-circle-dot" style="color:#e53935"></i> Capturing Geolocation details.
+                    </p>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title">Consent Tracking Capture</h3>
+                    <p class="card-desc">
+                        When clicked, the honeypot page queries browser geodetic APIs. The server logs the scammer's details:
+                    </p>
+                    <ul class="feature-list" style="margin-top: 1rem;">
+                        <li><i class="fa-solid fa-circle-chevron-right"></i> <strong>IP Address</strong> (e.g. <code>42.200.180.12</code>)</li>
+                        <li><i class="fa-solid fa-circle-chevron-right"></i> <strong>Geo Location</strong> (Sham Shui Po, HK)</li>
+                        <li><i class="fa-solid fa-circle-chevron-right"></i> <strong>Network Carrier</strong> (China Mobile HK)</li>
+                        <li><i class="fa-solid fa-circle-chevron-right"></i> <strong>User-Agent</strong> (OS details / device)</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: SKEPTICISM ENGINE -->
+        <section id="engine" class="doc-section">
+            <div class="header-badge"><i class="fa-solid fa-brain"></i> Algorithmic Brain</div>
+            <h2 class="doc-title">Skepticism Engine</h2>
+            <p class="doc-subtitle">The analysis engine runs localized scans against payment terms, common spam patterns, and official organizational rules.</p>
+
+            <div class="grid-2">
+                <div class="card" style="grid-column: span 2;">
+                    <h3 class="card-title">Risk Calculation Layers</h3>
+                    <p class="card-desc" style="margin-bottom: 1.5rem;">
+                        The total risk index is accumulated across three layers and capped at 100%. If a violation of an official procedure rule occurs, a severe penalty of 60 points is added.
+                    </p>
+                    <div style="background: rgba(0,0,0,0.3); border:1px solid var(--glass-border); padding: 1.5rem; border-radius:12px; font-family: var(--font-mono); font-size: 0.95rem; line-height: 1.6; color:#ffb300;">
+                        Risk Index = Min(100, Score_Payments + Score_Patterns + Score_Contradictions)
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title">Protected Payments (+15 pts)</h3>
+                    <p class="card-desc" style="margin-bottom: 1rem;">Scanning for mentions of critical money endpoints:</p>
+                    <ul class="feature-list">
+                        <li><i class="fa-solid fa-credit-card"></i> Bank Apps & Internet Banking ("網上銀行", "手機銀行")</li>
+                        <li><i class="fa-solid fa-bolt"></i> FPS / Faster Payment ("轉數快")</li>
+                        <li><i class="fa-solid fa-wallet"></i> Octopus, Alipay, WeChat Pay ("八達通", "支付寶")</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title">Procedure Violations (+60 pts)</h3>
+                    <p class="card-desc" style="margin-bottom: 1rem;">Checks contradictions against what institutions never do:</p>
+                    <ul class="feature-list">
+                        <li><i class="fa-solid fa-shield"></i> <strong>HK Police</strong>: Will NEVER request you to mail a physical bank card.</li>
+                        <li><i class="fa-solid fa-comments"></i> <strong>Alipay</strong>: Will NEVER request verification codes to cancel fees.</li>
+                        <li><i class="fa-solid fa-link"></i> <strong>HSBC</strong>: Will NEVER send links asking for security codes.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: DATABASE SCHEMA -->
+        <section id="database" class="doc-section">
+            <div class="header-badge"><i class="fa-solid fa-table"></i> Schema Blueprint</div>
+            <h2 class="doc-title">Database Schema</h2>
+            <p class="doc-subtitle">Review the schemas of Room database entities maintaining spam lists, official rules, alerts, and detailed incident history.</p>
+
+            <div class="db-schema-visual">
+                <!-- Table 1 -->
+                <div class="db-table-box">
+                    <div class="db-table-header">
+                        <span>scam_numbers</span>
+                        <i class="fa-solid fa-phone-slash"></i>
+                    </div>
+                    <div class="db-columns">
+                        <div class="db-column-row"><span class="db-col-name pk">id</span><span class="db-col-type">INTEGER</span></div>
+                        <div class="db-column-row"><span class="db-col-name">phone_number</span><span class="db-col-type">TEXT</span></div>
+                        <div class="db-column-row"><span class="db-col-name">entity_name</span><span class="db-col-type">TEXT</span></div>
+                        <div class="db-column-row"><span class="db-col-name">date_added</span><span class="db-col-type">INTEGER</span></div>
+                    </div>
+                </div>
+
+                <!-- Table 2 -->
+                <div class="db-table-box">
+                    <div class="db-table-header">
+                        <span>official_procedures</span>
+                        <i class="fa-solid fa-building-columns"></i>
+                    </div>
+                    <div class="db-columns">
+                        <div class="db-column-row"><span class="db-col-name pk">id</span><span class="db-col-type">INTEGER</span></div>
+                        <div class="db-column-row"><span class="db-col-name">institution</span><span class="db-col-type">TEXT</span></div>
+                        <div class="db-column-row"><span class="db-col-name">forbidden_action</span><span class="db-col-type">TEXT</span></div>
+                        <div class="db-column-row"><span class="db-col-name">warning_text</span><span class="db-col-type">TEXT</span></div>
+                    </div>
+                </div>
+
+                <!-- Table 3 -->
+                <div class="db-table-box">
+                    <div class="db-table-header">
+                        <span>scam_patterns</span>
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <div class="db-columns">
+                        <div class="db-column-row"><span class="db-col-name pk">id</span><span class="db-col-type">INTEGER</span></div>
+                        <div class="db-column-row"><span class="db-col-name">source</span><span class="db-col-type">TEXT</span></div>
+                        <div class="db-column-row"><span class="db-col-name">keywords</span><span class="db-col-type">TEXT</span></div>
+                        <div class="db-column-row"><span class="db-col-name">advice</span><span class="db-col-type">TEXT</span></div>
+                    </div>
+                </div>
+
+                <!-- Table 4 -->
+                <div class="db-table-box" style="flex-basis: 100%;">
+                    <div class="db-table-header">
+                        <span>call_incident_reports</span>
+                        <i class="fa-solid fa-file-invoice"></i>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap:0.5rem; padding: 0.5rem 0;">
+                        <div class="db-columns">
+                            <div class="db-column-row"><span class="db-col-name pk">id</span><span class="db-col-type">INTEGER</span></div>
+                            <div class="db-column-row"><span class="db-col-name">timestamp</span><span class="db-col-type">INTEGER</span></div>
+                            <div class="db-column-row"><span class="db-col-name">caller_number</span><span class="db-col-type">TEXT</span></div>
+                            <div class="db-column-row"><span class="db-col-name">carrier_location</span><span class="db-col-type">TEXT</span></div>
+                            <div class="db-column-row"><span class="db-col-name">risk_score</span><span class="db-col-type">INTEGER</span></div>
+                            <div class="db-column-row"><span class="db-col-name">dialog_transcript</span><span class="db-col-type">TEXT</span></div>
+                        </div>
+                        <div class="db-columns">
+                            <div class="db-column-row"><span class="db-col-name">link_intercepted</span><span class="db-col-type">TEXT?</span></div>
+                            <div class="db-column-row"><span class="db-col-name">spammer_ip</span><span class="db-col-type">TEXT?</span></div>
+                            <div class="db-column-row"><span class="db-col-name">spammer_location</span><span class="db-col-type">TEXT?</span></div>
+                            <div class="db-column-row"><span class="db-col-name">spammer_ua</span><span class="db-col-type">TEXT?</span></div>
+                            <div class="db-column-row"><span class="db-col-name">payment_methods_targeted</span><span class="db-col-type">TEXT?</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 5: DEVICE INTEGRATIONS -->
+        <section id="platforms" class="doc-section">
+            <div class="header-badge"><i class="fa-solid fa-mobile"></i> Native OS Hooks</div>
+            <h2 class="doc-title">Device Integrations</h2>
+            <p class="doc-subtitle">Explore the technical stack layout for Android (Kotlin) and iOS (Swift) integrations.</p>
+
+            <div class="platforms-split">
+                <!-- Android -->
+                <div class="platform-card android">
+                    <div class="platform-header android">
+                        <i class="fa-brands fa-android"></i> Android Details
+                    </div>
+                    <ul class="feature-list">
+                        <li><i class="fa-solid fa-code"></i> <strong>CallScreeningServiceImpl</strong> hooks incoming dial events asynchronously, comparing numbers with Room databases.</li>
+                        <li><i class="fa-solid fa-code"></i> <strong>LiveCallAccessibilityService</strong> scans screen node hierarchies and initializes speech recognizers using a Cantonese locale (<code>zh-HK</code>).</li>
+                        <li><i class="fa-solid fa-code"></i> <strong>SmsReceiver</strong> extracts links, logs events, and fires automated honeypot responses.</li>
+                    </ul>
+                </div>
+
+                <!-- iOS -->
+                <div class="platform-card ios">
+                    <div class="platform-header ios">
+                        <i class="fa-brands fa-apple"></i> iOS Details
+                    </div>
+                    <ul class="feature-list">
+                        <li><i class="fa-solid fa-code"></i> <strong>CallDirectoryHandler</strong> utilizes CallKit to pre-compile and sort blacklists in ascending order.</li>
+                        <li><i class="fa-solid fa-code"></i> <strong>MessageFilterExtension</strong> uses IdentityLookup to analyze text bodies and send scam SMS to system "Junk" folders.</li>
+                        <li><i class="fa-solid fa-code"></i> <strong>SwiftData / SQLite</strong> handles offline DB queries on device targets.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 6: LIVE SIMULATOR -->
+        <section id="simulator" class="doc-section">
+            <div class="header-badge"><i class="fa-solid fa-bolt"></i> Interactive Sandbox</div>
+            <h2 class="doc-title">Live Skepticism Simulator</h2>
+            <p class="doc-subtitle">Test how the Skepticism Engine evaluates dialogue transcripts and messages. Click a scenario preset or type your custom text in Cantonese/English.</p>
+
+            <div class="simulator-panel">
+                <!-- Input column -->
+                <div class="sim-input-column">
+                    <span class="sim-label">1. Choose a Scenario Preset</span>
+                    <div class="preset-scenarios">
+                        <button class="preset-btn" onclick="loadScenario('clear')">Clear Text</button>
+                        <button class="preset-btn" onclick="loadScenario('alipay')">Alipay Impersonator</button>
+                        <button class="preset-btn" onclick="loadScenario('police')">Fake HK Police</button>
+                        <button class="preset-btn" onclick="loadScenario('hsbc')">HSBC Phishing SMS</button>
+                        <button class="preset-btn" onclick="loadScenario('courier')">Fake DHL Courier</button>
+                    </div>
+
+                    <span class="sim-label">2. Conversational Input</span>
+                    <textarea id="simTextarea" class="sim-textarea" placeholder="Type dialogue or copy message here..."></textarea>
+                </div>
+
+                <!-- Output column -->
+                <div class="sim-output-column">
+                    <div>
+                        <span class="sim-label">Analysis Result</span>
+                        <div class="gauge-area">
+                            <div class="gauge-ring">
+                                <svg class="gauge-svg">
+                                    <circle class="gauge-track" cx="50" cy="50" r="45"></circle>
+                                    <circle id="gaugeFill" class="gauge-fill" cx="50" cy="50" r="45"></circle>
+                                </svg>
+                                <div id="gaugeText" class="gauge-text">0%</div>
+                            </div>
+                            <div>
+                                <div id="gaugeLabel" class="gauge-label">Safe Connection</div>
+                                <div id="gaugeSub" class="gauge-sub">No threats identified.</div>
+                            </div>
+                        </div>
+
+                        <div class="meter-container">
+                            <span class="sim-label">Calculated Suspect Level</span>
+                            <div class="progress-bar">
+                                <div id="progressBarFill" class="progress-fill"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <span class="sim-label">Identified Threat Vectors</span>
+                        <div id="simAlerts" class="sim-alerts">
+                            <div class="empty-alerts">Input dialogue to begin skepticism analysis.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- JS Logic -->
+    <script>
+        // Tab switching logic
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                // Remove active classes
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                document.querySelectorAll('.doc-section').forEach(s => s.classList.remove('active'));
+                
+                // Add active classes
+                item.classList.add('active');
+                const targetId = item.getAttribute('data-target');
+                document.getElementById(targetId).classList.add('active');
+            });
+        });
+
+        // Scenario Presets
+        const scenarios = {
+            clear: "",
+            alipay: "你好，我係支付寶客服。系統檢測到你個賬戶有異常扣費，為咗確保資金安全，你需要向我哋個安全賬戶做資產審查轉賬，或者提供你張信用卡嘅驗證碼。",
+            police: "你好，呢度係香港警務處反詐騙小組。你涉嫌參與一宗跨境刑事洗錢案。依家法庭要求你將你嘅實體銀行卡用快遞郵寄黎我哋反詐中心進行清查，否則將會凍結資金。",
+            hsbc: "Dear customer, abnormal transactions were detected in your internet banking account. Please click the link to verify: https://scam-verify-alipay.com to protect your Visa card.",
+            courier: "你好，我係快遞客服。你嘅包裹受阻，被海關扣留，稱郵包有違禁品，要配合公安調查並轉帳快速支付或FPS支付罰款取消扣費。"
+        };
+
+        function loadScenario(type) {
+            // Set textarea value
+            const text = scenarios[type];
+            document.getElementById('simTextarea').value = text;
+            
+            // Highlight active button
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.innerText.toLowerCase().includes(type) || (type === 'clear' && btn.innerText === 'Clear Text')) {
+                    btn.classList.add('active');
+                }
+            });
+
+            analyzeText(text);
+        }
+
+        // Live text analysis logic
+        const textarea = document.getElementById('simTextarea');
+        textarea.addEventListener('input', (e) => {
+            // Remove scenario highlights since text is custom
+            document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+            analyzeText(e.target.value);
+        });
+
+        function analyzeText(text) {
+            const alertsBox = document.getElementById('simAlerts');
+            alertsBox.innerHTML = '';
+
+            if (!text || text.trim().length === 0) {
+                updateGauge(0);
+                alertsBox.innerHTML = '<div class="empty-alerts">Input dialogue to begin skepticism analysis.</div>';
+                return;
+            }
+
+            let score = 0;
+            let advices = [];
+            let threats = [];
+
+            // 1. Protected Payments (+15 per term)
+            const payments = [
+                { terms: ["銀行app", "手機銀行", "bank app"], label: "Bank App Target" },
+                { terms: ["網上銀行", "網銀", "e-banking", "internet banking"], label: "Internet Banking Target" },
+                { terms: ["visa", "信用卡", "credit card"], label: "Credit Card Target" },
+                { terms: ["轉數快", "fps", "快速支付"], label: "FPS/Faster Payment Target" },
+                { terms: ["八達通", "octopus"], label: "Octopus Target" },
+                { terms: ["支付寶", "alipay", "支寶"], label: "Alipay Target" },
+                { terms: ["微信支付", "wechat pay", "微信過數"], label: "WeChat Pay Target" }
+            ];
+
+            let detectedPayments = [];
+            payments.forEach(p => {
+                const matched = p.terms.some(t => text.toLowerCase().includes(t));
+                if (matched) {
+                    detectedPayments.push(p.label);
+                    score += 15;
+                }
+            });
+
+            if (detectedPayments.length > 0) {
+                threats.push({
+                    type: 'info',
+                    text: `Payment vector(s) identified: ${detectedPayments.join(', ')}`
+                });
+            }
+
+            // 2. Scam Patterns (+25 per keyword match)
+            const patterns = [
+                { source: "ADCC Alert", keywords: ["安全賬戶", "資產審查", "刑事案件", "凍結資金"], advice: "提及「資金審查」或「安全賬戶」為假冒公安詐騙手法。" },
+                { source: "Police Alert", keywords: ["客服", "開通服務", "收費", "取消訂閱", "驗證碼"], advice: "以「取消扣費/服務」索要密碼或驗證碼是信用卡憑證盜用手法。" },
+                { source: "Consumer Council", keywords: ["快遞", "包裹受阻", "海關", "罰款", "違禁品"], advice: "假冒快遞客服稱郵包有違禁品並索要罰款為常見套路。" }
+            ];
+
+            patterns.forEach(p => {
+                let matches = 0;
+                p.keywords.forEach(kw => {
+                    if (text.includes(kw)) matches++;
+                });
+                if (matches > 0) {
+                    score += 25 * matches;
+                    threats.push({
+                        type: 'warning',
+                        text: `[${p.source}] Pattern matched: ${p.advice}`
+                    });
+                }
+            });
+
+            // 3. Contradictions (+60 per matched violation)
+            const contradictions = [
+                { 
+                    inst: "Police", 
+                    aliases: ["Police", "警察", "警局", "公安", "反詐"], 
+                    forbidden: ["郵寄", "寄過嚟", "寄黎", "銀行卡", "提款卡", "轉賬", "安全賬戶"],
+                    warning: "🚨 Contradiction: HK Police never request you to mail physical bank cards or transfer money to secure accounts." 
+                },
+                { 
+                    inst: "Alipay", 
+                    aliases: ["Alipay", "支付寶", "支寶"], 
+                    forbidden: ["驗證碼", "密碼", "安全編碼", "一次性密碼", "轉賬"],
+                    warning: "🚨 Contradiction: Alipay Support never requests verification codes or private money transfers." 
+                },
+                { 
+                    inst: "HSBC", 
+                    aliases: ["HSBC", "滙豐", "匯豐", "銀行"], 
+                    forbidden: ["http", "https", "link", "鏈接", "網址", "密碼", "驗證碼"],
+                    warning: "🚨 Contradiction: HSBC never sends messages containing direct hyperlinks asking for security passwords." 
+                }
+            ];
+
+            contradictions.forEach(c => {
+                const matchesInst = c.aliases.some(a => text.toLowerCase().includes(a));
+                const matchesForbid = c.forbidden.some(f => text.toLowerCase().includes(f));
+                if (matchesInst && matchesForbid) {
+                    score += 60;
+                    threats.push({
+                        type: 'danger',
+                        text: c.warning
+                    });
+                }
+            });
+
+            // Check for unverified links
+            if ((text.includes("http://") || text.includes("https://") || text.includes("www.")) && score < 70) {
+                score += 30;
+                threats.push({
+                    type: 'danger',
+                    text: "🚨 Alert: Contains raw web links. SMS URL routing intercepted automatically."
+                });
+            }
+
+            // Cap score at 100
+            score = Math.min(100, score);
+            updateGauge(score);
+
+            // Display warnings
+            if (threats.length > 0) {
+                threats.forEach(t => {
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = `sim-alert-item ${t.type}`;
+                    
+                    let icon = 'fa-circle-info';
+                    if (t.type === 'danger') icon = 'fa-triangle-exclamation';
+                    if (t.type === 'warning') icon = 'fa-circle-exclamation';
+
+                    alertDiv.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${t.text}</span>`;
+                    alertsBox.appendChild(alertDiv);
+                });
+            } else {
+                alertsBox.innerHTML = '<div class="sim-alert-item info"><i class="fa-solid fa-circle-check"></i> <span>No immediate contradictions or spam vectors identified in the current transcript segment. Keep listening.</span></div>';
+            }
+        }
+
+        function updateGauge(val) {
+            // Update SVG Ring offset (dasharray is 282.6)
+            const fill = document.getElementById('gaugeFill');
+            const pct = (100 - val) / 100;
+            const offset = pct * 282.6;
+            fill.style.strokeDashoffset = offset;
+
+            // Change color based on value
+            let color = 'var(--accent-green)';
+            let label = 'Safe Connection';
+            let sub = 'Dialogue transcript looks normal.';
+
+            if (val > 75) {
+                color = 'var(--primary)';
+                label = 'Severe Threat!';
+                sub = 'Scam pattern and procedure contradiction matches confirmed.';
+            } else if (val > 35) {
+                color = 'var(--accent-yellow)';
+                label = 'Suspicious Call';
+                sub = 'Conversational patterns match warning thresholds.';
+            }
+
+            fill.style.stroke = color;
+            document.getElementById('gaugeText').style.color = color;
+            document.getElementById('gaugeText').innerText = `${val}%`;
+            document.getElementById('gaugeLabel').innerText = label;
+            document.getElementById('gaugeLabel').style.color = color;
+            document.getElementById('gaugeSub').innerText = sub;
+
+            // Update progress bar
+            const barFill = document.getElementById('progressBarFill');
+            barFill.style.width = `${val}%`;
+            barFill.style.background = color;
+        }
+    </script>
+</body>
+</html>
