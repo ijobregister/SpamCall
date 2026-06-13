@@ -1,4 +1,4 @@
-package com.guardcall.app.ui
+package com.hkaiSolveAcademy.vibeCoding.matszyu.ui
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -39,11 +39,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.guardcall.app.data.AppDatabase
-import com.guardcall.app.data.CallIncidentReport
-import com.guardcall.app.data.OfficialProcedure
-import com.guardcall.app.data.ScamNumber
-import com.guardcall.app.data.ScamPattern
+import com.hkaiSolveAcademy.vibeCoding.matszyu.data.AppDatabase
+import com.hkaiSolveAcademy.vibeCoding.matszyu.data.CallIncidentReport
+import com.hkaiSolveAcademy.vibeCoding.matszyu.data.OfficialProcedure
+import com.hkaiSolveAcademy.vibeCoding.matszyu.data.ScamNumber
+import com.hkaiSolveAcademy.vibeCoding.matszyu.data.ScamPattern
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -89,14 +89,14 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private val eventReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
-                "com.guardcall.app.SHOW_CALL_ALERT" -> {
+                "com.hkaiSolveAcademy.vibeCoding.matszyu.SHOW_CALL_ALERT" -> {
                     activeCallerNumber = intent.getStringExtra("EXTRA_NUMBER") ?: ""
                     activeCallerName = intent.getStringExtra("EXTRA_TAG") ?: "Suspected Spam Call"
                     isCallActive = true
                     liveRiskScore = 60
                     liveAdvice = "Caller found in Scam Blacklist! Screen showing potential warning."
                 }
-                "com.guardcall.app.SMS_INTERCEPTED" -> {
+                "com.hkaiSolveAcademy.vibeCoding.matszyu.SMS_INTERCEPTED" -> {
                     val sender = intent.getStringExtra("EXTRA_SENDER") ?: ""
                     val body = intent.getStringExtra("EXTRA_BODY") ?: ""
                     val url = intent.getStringExtra("EXTRA_URL") ?: ""
@@ -111,7 +111,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                     showLinkReleaseRequest = true
                     if (repId != -1L) currentIncidentReportId = repId
                 }
-                "com.guardcall.app.TRANSCRIPTION_BUBBLE" -> {
+                "com.hkaiSolveAcademy.vibeCoding.matszyu.TRANSCRIPTION_BUBBLE" -> {
                     val speaker = intent.getStringExtra("EXTRA_SPEAKER") ?: "Spammer"
                     val text = intent.getStringExtra("EXTRA_TEXT") ?: ""
                     val isFinal = intent.getBooleanExtra("EXTRA_IS_FINAL", true)
@@ -120,7 +120,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                         liveTranscript.add(TranscriptItem(speaker, text))
                     }
                 }
-                "com.guardcall.app.SKEPTICISM_ALERT" -> {
+                "com.hkaiSolveAcademy.vibeCoding.matszyu.SKEPTICISM_ALERT" -> {
                     liveRiskScore = intent.getIntExtra("EXTRA_RISK_SCORE", 0)
                     liveAdvice = intent.getStringExtra("EXTRA_ADVICE") ?: ""
                     val warning = intent.getStringExtra("EXTRA_WARNING_TEXT")
@@ -140,10 +140,10 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
         // Register local broadcasts from screening services
         val filter = IntentFilter().apply {
-            addAction("com.guardcall.app.SHOW_CALL_ALERT")
-            addAction("com.guardcall.app.SMS_INTERCEPTED")
-            addAction("com.guardcall.app.TRANSCRIPTION_BUBBLE")
-            addAction("com.guardcall.app.SKEPTICISM_ALERT")
+            addAction("com.hkaiSolveAcademy.vibeCoding.matszyu.SHOW_CALL_ALERT")
+            addAction("com.hkaiSolveAcademy.vibeCoding.matszyu.SMS_INTERCEPTED")
+            addAction("com.hkaiSolveAcademy.vibeCoding.matszyu.TRANSCRIPTION_BUBBLE")
+            addAction("com.hkaiSolveAcademy.vibeCoding.matszyu.SKEPTICISM_ALERT")
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(eventReceiver, filter, RECEIVER_EXPORTED)
@@ -627,7 +627,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             // Write incident report to Database
             mainScope.launch(Dispatchers.IO) {
                 val transcriptText = liveTranscript.map { "${it.speaker}: ${it.text}" }.joinToString("\n")
-                val engine = com.guardcall.app.engine.SkepticismEngine()
+                val engine = com.hkaiSolveAcademy.vibeCoding.matszyu.engine.SkepticismEngine()
                 val detectedPaymentsList = engine.detectTargetedPayments(applicationContext, if (isSmsMode) smsBodyText else transcriptText)
                 val paymentsString = if (detectedPaymentsList.isNotEmpty()) detectedPaymentsList.joinToString(", ") else null
 

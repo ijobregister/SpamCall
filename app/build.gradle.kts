@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.guardcall.app"
+    namespace = "com.hkaiSolveAcademy.vibeCoding.matszyu"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.guardcall.app"
+        applicationId = "com.hkaiSolveAcademy.vibeCoding.matszyu"
         minSdk = 29
         targetSdk = 35
         versionCode = 1

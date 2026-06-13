@@ -1,4 +1,4 @@
-package com.guardcall.app.service
+package com.hkaiSolveAcademy.vibeCoding.matszyu.service
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -6,8 +6,8 @@ import android.content.Intent
 import android.provider.Telephony
 import android.telephony.SmsManager
 import android.util.Log
-import com.guardcall.app.data.AppDatabase
-import com.guardcall.app.data.CallIncidentReport
+import com.hkaiSolveAcademy.vibeCoding.matszyu.data.AppDatabase
+import com.hkaiSolveAcademy.vibeCoding.matszyu.data.CallIncidentReport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -83,7 +83,7 @@ class SmsReceiver : BroadcastReceiver() {
     }
 
     private fun broadcastSmsIntercept(context: Context, sender: String, body: String, url: String, reportId: Long) {
-        val intent = Intent("com.guardcall.app.SMS_INTERCEPTED").apply {
+        val intent = Intent("com.hkaiSolveAcademy.vibeCoding.matszyu.SMS_INTERCEPTED").apply {
             putExtra("EXTRA_SENDER", sender)
             putExtra("EXTRA_BODY", body)
             putExtra("EXTRA_URL", url)

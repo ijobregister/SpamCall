@@ -1,12 +1,12 @@
-package com.guardcall.app.service
+package com.hkaiSolveAcademy.vibeCoding.matszyu.service
 
 import android.content.Intent
 import android.os.Build
 import android.telecom.Call
 import android.telecom.CallScreeningService
 import androidx.annotation.RequiresApi
-import com.guardcall.app.data.AppDatabase
-import com.guardcall.app.data.ScamNumber
+import com.hkaiSolveAcademy.vibeCoding.matszyu.data.AppDatabase
+import com.hkaiSolveAcademy.vibeCoding.matszyu.data.ScamNumber
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -71,7 +71,7 @@ class CallScreeningServiceImpl : CallScreeningService() {
     }
 
     private fun sendOverlayAlertBroadcast(number: String, tag: String, location: String) {
-        val intent = Intent("com.guardcall.app.SHOW_CALL_ALERT").apply {
+        val intent = Intent("com.hkaiSolveAcademy.vibeCoding.matszyu.SHOW_CALL_ALERT").apply {
             putExtra("EXTRA_NUMBER", number)
             putExtra("EXTRA_TAG", tag)
             putExtra("EXTRA_LOCATION", location)

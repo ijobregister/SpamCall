@@ -387,7 +387,7 @@ $pbxproj += @"
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.scamcall.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hkaiSolveAcademy.vibeCoding.matszyu;
 				PRODUCT_NAME = "`$`(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -413,7 +413,7 @@ $pbxproj += @"
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.scamcall.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hkaiSolveAcademy.vibeCoding.matszyu;
 				PRODUCT_NAME = "`$`(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;

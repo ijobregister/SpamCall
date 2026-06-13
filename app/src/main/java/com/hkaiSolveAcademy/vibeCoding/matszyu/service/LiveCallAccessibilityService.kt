@@ -1,4 +1,4 @@
-package com.guardcall.app.service
+package com.hkaiSolveAcademy.vibeCoding.matszyu.service
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
@@ -9,7 +9,7 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
-import com.guardcall.app.engine.SkepticismEngine
+import com.hkaiSolveAcademy.vibeCoding.matszyu.engine.SkepticismEngine
 import java.util.Locale
 
 class LiveCallAccessibilityService : AccessibilityService() {
@@ -140,7 +140,7 @@ class LiveCallAccessibilityService : AccessibilityService() {
     }
 
     private fun broadcastTranscriptionBubble(speaker: String, text: String, isFinal: Boolean) {
-        val intent = Intent("com.guardcall.app.TRANSCRIPTION_BUBBLE").apply {
+        val intent = Intent("com.hkaiSolveAcademy.vibeCoding.matszyu.TRANSCRIPTION_BUBBLE").apply {
             putExtra("EXTRA_SPEAKER", speaker)
             putExtra("EXTRA_TEXT", text)
             putExtra("EXTRA_IS_FINAL", isFinal)
@@ -150,7 +150,7 @@ class LiveCallAccessibilityService : AccessibilityService() {
     }
 
     private fun broadcastSkepticismAlert(analysis: SkepticismEngine.AnalysisResult) {
-        val intent = Intent("com.guardcall.app.SKEPTICISM_ALERT").apply {
+        val intent = Intent("com.hkaiSolveAcademy.vibeCoding.matszyu.SKEPTICISM_ALERT").apply {
             putExtra("EXTRA_RISK_SCORE", analysis.riskScore)
             putExtra("EXTRA_ADVICE", analysis.advice)
             putExtra("EXTRA_CONTRADICTION", analysis.contradictionFound)

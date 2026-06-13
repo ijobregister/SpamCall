@@ -1,9 +1,9 @@
-package com.guardcall.app.engine
+package com.hkaiSolveAcademy.vibeCoding.matszyu.engine
 
 import android.content.Context
-import com.guardcall.app.data.AppDatabase
-import com.guardcall.app.data.OfficialProcedure
-import com.guardcall.app.data.ScamPattern
+import com.hkaiSolveAcademy.vibeCoding.matszyu.data.AppDatabase
+import com.hkaiSolveAcademy.vibeCoding.matszyu.data.OfficialProcedure
+import com.hkaiSolveAcademy.vibeCoding.matszyu.data.ScamPattern
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
